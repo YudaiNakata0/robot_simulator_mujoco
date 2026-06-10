@@ -1,0 +1,33 @@
+<mujoco model="planar_4dof_arm">
+    <option gravity="0 0 0" timestep="0.002"/>
+
+    <worldbody>
+        <camera name="top" pos="0 -3 1" xyaxes="1 0 0 0 0 1"/>
+
+        <geom name="floor" type="plane" size="5 5 0.1" rgba="0.9 0.9 0.9 1"/>
+
+        <body name="link1" pos="0 0 0.1">
+            <geom name="g1" type="capsule" fromto="0 0 0 0 0 0.4" size="0.04" rgba="0.2 0.4 0.6 1"/>
+            <joint name="joint1" type="hinge" axis="0 1 0" pos="0 0 0"/>
+
+            <body name="link2" pos="0 0 0.4">
+                <geom name="g2" type="capsule" fromto="0 0 0 0 0 0.4" size="0.035" rgba="0.3 0.5 0.7 1"/>
+                <joint name="joint2" type="hinge" axis="0 1 0" pos="0 0 0"/>
+
+                <body name="link3" pos="0 0 0.4">
+                    <geom name="g3" type="capsule" fromto="0 0 0 0 0 0.4" size="0.03" rgba="0.4 0.6 0.8 1"/>
+                    <joint name="joint3" type="hinge" axis="0 1 0" pos="0 0 0"/>
+
+                    <body name="link4" pos="0 0 0.4">
+                        <geom name="g4" type="capsule" fromto="0 0 0 0 0 0.3" size="0.025" rgba="0.5 0.7 0.9 1"/>
+                        <joint name="joint4" type="hinge" axis="0 1 0" pos="0 0 0"/>
+                        
+                        <body name="ee" pos="0 0 0.3">
+                            <site name="tip" pos="0 0 0" size="0.03" rgba="1 0 0 1"/>
+                        </body>
+                    </body>
+                </body>
+            </body>
+        </body>
+    </worldbody>
+</mujoco>
