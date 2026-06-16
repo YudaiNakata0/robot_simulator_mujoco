@@ -3,37 +3,29 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 import threading
+import rospy
+from geometry_msgs.msg import Vector3
+from std_msgs.msg import Float64MultiArray
+
 
 class PandaSimulator:
     def __init__(self):
         self.target_pos = np.array([0.1, 0.0, 0.8])  # 目標位置
         self.target_lock = threading.Lock()
         self.K_p = 2  # 比例ゲイン
+        self.setup_ros()
+        
+    def setup_ros(self):
+        rospy.init_node('panda_simulator', anonymous=True)
+        rospy.Subscriber('/target_position', Vector3, self.callback_target_position)
+        self.position_pub = rospy.Publisher('/current_position', Vector3, queue_size=10)
+        self.joint_pub = rospy.Publisher('/joint_states', Float64MultiArray, queue_size=10)
 
-    def input_thread(self):
-        while True:
-            try:
-                s = input("target x y z > ")
-
-                vals = [float(v) for v in s.split()]
-
-                if len(vals) != 3:
-                    print("入力形式: x y z")
-                    continue
-
-                with self.target_lock:
-                    self.target_pos[:] = vals
-
-                print("new target =", self.target_pos)
-
-            except Exception as e:
-                print(e)
+    def callback_target_position(self, msg):
+        with self.target_lock:
+            self.target_pos[:] = [msg.x, msg.y, msg.z]
 
     def main(self):
-        threading.Thread(
-        target=self.input_thread,
-        daemon=True
-        ).start()
         # 1. 作成したXMLモデルの読み込み
         model = mujoco.MjModel.from_xml_path('scene.xml')
         data = mujoco.MjData(model)
@@ -55,7 +47,7 @@ class PandaSimulator:
             # サーボの位置取得
             q_des = data.qpos[:7].copy()
             
-            while viewer.is_running():
+            while viewer.is_running() and not rospy.is_shutdown():
                 step_start = time.time()
 
                 # 3. 物理演算を1ステップ進める
@@ -70,7 +62,6 @@ class PandaSimulator:
                     x_target = self.target_pos.copy()
                 error = x_target - x
                 v_des = self.K_p * error
-                # print(f"Step {step_count}: v_des = {v_des}, error = {error}")
                 
                 # ヤコビアンを格納する空の行列を用意
                 jac_p = np.zeros((3, model.nv))
@@ -81,15 +72,23 @@ class PandaSimulator:
 
                 # 指を覗いた7自由度を制御
                 J_pos = jac_p[:, :7]
-                # print(f"Step {step_count}: J_pos = {J_pos}")
                 dq = np.linalg.pinv(J_pos) @ v_des
-                # print(f"Step {step_count}: dq = {dq}, v_des = {v_des}, error = {error}")
                 
                 # 関節位置の更新
                 q_des += dq * model.opt.timestep
-                # print(f"dq {dq}: q_des = {q_des}, duration = {model.opt.timestep}")
                 data.ctrl[:7] = q_des
+                
+                # 状態の配信
+                msg_position = Vector3()
+                msg_position.x = x[0]
+                msg_position.y = x[1]
+                msg_position.z = x[2]
+                self.position_pub.publish(msg_position)
 
+                msg_joints = Float64MultiArray()
+                msg_joints.data = data.qpos[:7].tolist()
+                self.joint_pub.publish(msg_joints)
+    
                 # アニメーションを更新
                 viewer.sync()
                 
